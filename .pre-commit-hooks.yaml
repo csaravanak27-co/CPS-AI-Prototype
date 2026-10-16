@@ -1,0 +1,7 @@
+- id: vulnquest-git-diff
+  name: VulnQuest AI Git Diff Scanner
+  description: Scans modified/staged Python lines for vulnerabilities before commit
+  entry: python scripts/vulnquest_git_hook.py
+  language: python
+  types: [python]
+  pass_filenames: false

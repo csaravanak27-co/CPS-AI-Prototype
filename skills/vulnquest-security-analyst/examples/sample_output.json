@@ -1,0 +1,29 @@
+{
+  "status": "success",
+  "findings_count": 1,
+  "findings": [
+    {
+      "rule_id": "VQ001",
+      "title": "SQL injection (string-built query)",
+      "severity": "High",
+      "confidence": "Medium",
+      "line": 3,
+      "snippet": "return conn.cursor().execute('SELECT * FROM users WHERE id=' + uid)",
+      "fix": "Use parameterized queries: cursor.execute(sql, (value,))."
+    }
+  ],
+  "patches": [
+    {
+      "rule_id": "VQ001",
+      "replacement": "    return conn.cursor().execute('SELECT * FROM users WHERE id=?', (uid,))",
+      "why_it_fixes": "Uses parameterized queries (prepared statements), ensuring user input is treated strictly as data rather than executable SQL."
+    }
+  ],
+  "verification": {
+    "syntax_status": "Passed",
+    "target_status": "Resolved",
+    "new_findings_status": "None detected",
+    "regression_status": "Passed",
+    "overall_result": "Verified by available checks"
+  }
+}

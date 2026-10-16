@@ -1,0 +1,5 @@
+{
+  "source_code": "import sqlite3\ndef find_user(conn, uid):\n    return conn.cursor().execute('SELECT * FROM users WHERE id=' + uid)\n",
+  "provider": "ollama",
+  "model": "gemma4:e2b-it-q4_K_M"
+}

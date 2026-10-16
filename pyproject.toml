@@ -1,0 +1,33 @@
+[build-system]
+requires = ["setuptools>=77", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "vulnquest-ai"
+version = "0.2.0"
+description = "Autonomous Application Security & Remediation Analyst"
+readme = "README.md"
+requires-python = ">=3.11"
+license = "MIT"
+authors = [
+    { name = "VulnQuest AI Team" }
+]
+dependencies = [
+    "PySide6>=6.7,<7",
+    "requests>=2.31",
+    "python-dotenv>=1.0",
+    "bandit>=1.7"
+]
+
+[project.optional-dependencies]
+dev = ["pytest>=8.0", "pyinstaller>=6.0"]
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["vulnquest", "vulnquest.*"]
+namespaces = false
+
+[tool.pytest.ini_options]
+pythonpath = ["."]
+testpaths = ["tests"]
+addopts = "-q"
