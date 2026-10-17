@@ -7,7 +7,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 
 MAX_PATCH_BYTES = 500_000
-BACKUP_DIR = ".vulnquest_backup"
+BACKUP_DIR = ".cps_backup"
 MANIFEST_FILE = "manifest.json"
 
 def safe_rel(path: str) -> str:
@@ -174,8 +174,21 @@ def apply_patch(workdir: Path | str, rel: str, new_source: str, approved: bool =
         }
         manifest_path.write_text(json.dumps(manifest, indent=2), encoding="utf-8")
 
-    # Write patched source preserving encoding
-    target.write_text(new_source, encoding="utf-8")
+    # Write patched source atomically using temporary file in same directory and os.replace
+    import tempfile
+    temp_fd, temp_path = tempfile.mkstemp(dir=target.parent, prefix="cps_patch_")
+    try:
+        with os.fdopen(temp_fd, "w", encoding="utf-8") as f:
+            f.write(new_source)
+        os.replace(temp_path, target)
+    except Exception:
+        if os.path.exists(temp_path):
+            try:
+                os.remove(temp_path)
+            except Exception:
+                pass
+        raise
+
     new_hash = compute_hash(new_source)
 
     return {

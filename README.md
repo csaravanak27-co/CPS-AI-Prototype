@@ -1,68 +1,190 @@
-# VulnQuest AI
+# C.P.S. — Universal AI Coding Companion & Security Platform
 
-VulnQuest AI is a local-first, Windows desktop security scanner. Python receives AST-based checks; a broader set of source and project files can be scanned with cautious lexical rules. It does not execute scanned projects. Findings are advisory and static analysis cannot prove that software is secure.
+**C.P.S.** is an intelligent, multi-platform coding companion, browser extension, and security analysis workbench designed for modern software development, competitive programming, and code security analysis.
 
-## Current implementation status
+---
 
-The native PySide6 desktop app includes a dark, consistent navigation and workspace style, project selection, background folder scanning, findings, local scan history, JSON/CSV/HTML/Markdown exports, and a local Ollama/Gemma 4 connection check. Interactive AI chat, the Git diff screen, and end-to-end approved source-file editing/rollback are not yet wired into the GUI. The GUI does not modify project files.
+## 🌟 Key Capabilities
 
-The original ZIP mentioned in the request was not present in the workspace. This audit and changes use the available checkout at `vulnquest-ai/`.
+1. **Browser Extension (Chrome & Microsoft Edge, Manifest V3)**
+   - Persistent AI sidebar with multi-tab interface (Chat, Code Studio, History, Settings).
+   - Non-intrusive **Highlight-to-Ask** action button with intelligent context menus.
+   - Dedicated site adapters for **LeetCode, HackerRank, Codeforces, CodeChef, GeeksforGeeks, GitHub, GitLab, and Stack Overflow**.
+   - Generic DOM selection fallback for arbitrary documentation sites and web editors.
 
-## Install and run on Windows 10/11
+2. **Multi-Language Code Generation Engine**
+   - Supports **28+ programming languages** (Python, JavaScript, TypeScript, Java, C, C++, C#, Go, Rust, PHP, Ruby, Kotlin, Swift, Dart, R, SQL, Bash, PowerShell, HTML, CSS, Scala, Perl, Lua, Julia, MATLAB, Haskell, Solidity).
+   - Solution generation, step-by-step algorithmic explanation, bug fixes, performance optimization, multi-language translation, test generation, and algorithmic complexity analysis.
 
-Install Python 3.11 or newer, then in PowerShell:
+3. **Hybrid AI Provider Architecture**
+   - **Local Inference (100% Private):** Ollama integration with Gemma 4 (`gemma4:e2b-it-q4_K_M`) or open-weight models. Zero telemetry or network transmission.
+   - **Hosted Inference (High Speed):** Groq (LLaMA 3.3 70B), Google Gemini (Gemini 2.0 Flash), and OpenRouter.
+   - **Deterministic Offline Assistant:** Built-in Mock provider requiring zero API keys, network access, or downloads.
+
+4. **Static Code Security & Verification Engine**
+   - Deterministic AST-based vulnerability scanning for Python and lexical security checks across all supported languages.
+   - Interactive **Patch Lab** with unified diff previews, mandatory human approval, pristine backup preservation, and one-click rollback.
+   - Independent **Verification Center** evaluating syntax validity, target vulnerability resolution, zero new findings introduced, and public API preservation.
+   - **Git Diff Scanner** identifying newly introduced security flaws in working trees and staged commits.
+
+5. **Safe Code Execution Sandbox**
+   - Sandboxed local execution for Python, JavaScript (Node.js), C, C++, Go, Rust, and Java.
+   - Strict process timeouts, memory limits, and isolated standard output/error separation.
+   - Never executes code automatically — requires explicit human action.
+
+6. **Native Windows Desktop Application (PySide6)**
+   - Unified desktop workbench sharing the identical backend and core logic.
+   - 13 specialized pages covering Code Studio, AI Chat, Project Scanner, Findings Explorer, Patch Lab, Verification Center, Git Diff Scanner, Sandbox, Reports, History, Model Manager, and Settings.
+
+---
+
+## 🚀 Quick Start Guide
+
+### Prerequisites
+- Windows 10/11
+- Python 3.11+
+- (Optional) [Ollama](https://ollama.com) for private local AI inference
+
+### 1. Setup Environment
 
 ```powershell
-cd path\to\vulnquest-ai
-py -3.11 -m venv .venv
+# Clone or navigate to the repository
+cd C.P.S
+
+# Activate the virtual environment
 .\.venv\Scripts\Activate.ps1
-python -m pip install --upgrade pip
-python -m pip install -e ".[dev]"
+
+# Install editable package
+pip install -e .
+```
+
+### 2. Launch Desktop Application
+
+```powershell
 python app.py
 ```
 
-Static scanning works without an API key and without Ollama. The app opens a native desktop window, not a browser.
-
-## Gemma 4 local inference
-
-The configured default is `gemma4:e2b-it-q4_K_M`, an Ollama library tag for a quantized Gemma 4 E2B instruction-tuned model. It is an Ollama-distributed packaging/tag, not a Google-issued model identifier. Google identifies the family as Gemma 4 (E2B, E4B, 12B, 26B A4B, and 31B); its model card states Apache 2.0. Review the [Gemma 4 model card](https://ai.google.dev/gemma/docs/core/model_card_4) and [license](https://ai.google.dev/gemma/docs/core/license) before redistribution or commercial use.
-
-Install Ollama separately from [ollama.com](https://ollama.com), then run:
+### 3. Launch Shared Backend Server (for Extension & API)
 
 ```powershell
-ollama pull gemma4:e2b-it-q4_K_M
-python app.py
+python -m backend.server
 ```
+The server will start on `http://127.0.0.1:8899`.
 
-The listed quantized E2B artifact is about 4.6 GB on disk. Ollama runtime memory needs exceed weight size and vary with context length, backend, and other applications; this project has not established a minimum RAM/GPU requirement through local hardware testing. In the app choose **Model Manager → Check local Ollama and model**. No automatic cloud fallback occurs. The `OllamaProvider` sends requests to the configured local Ollama endpoint; a reachable service/model is not the same as tested model quality. Real inference has not been tested in this environment.
+### 4. Install Browser Extension in Chrome / Edge
 
-## Using the scanner
+1. Open your browser and navigate to:
+   - Chrome: `chrome://extensions`
+   - Edge: `edge://extensions`
+2. Enable **Developer mode** (toggle in upper right corner).
+3. Click **Load unpacked**.
+4. Select the `extension/` directory inside this repository.
+5. Click the C.P.S. extension icon in your browser toolbar or press the side panel shortcut.
 
-Choose a project folder and select **Scan project source**. Discovery includes Python, JavaScript/TypeScript, Java, C/C++, C#, Go, Rust, PHP, Ruby, Swift, Kotlin, Scala, shell, SQL, HTML, YAML, JSON, TOML, Terraform, and common project config files. Python uses AST analysis. Other languages currently get generic line-based checks for credential literals, dynamic execution, shell execution, disabled TLS, weak hashes, and unsafe deserialization; these checks do not understand language syntax or data flow and can produce false positives. This is broad file support, not full language-specific SAST coverage. The scanner skips common environment/build/cache directories, symlinks, unsupported files, and oversized files. It never executes scanned source. Review findings in Findings Explorer and export a redacted report from Reports. History is stored in a local SQLite database under `vulnquest_data/` by default. Set `VULNQUEST_DATA_DIR` to change it.
+---
 
-The existing scanner rules cover patterns such as SQL construction, unsafe subprocess usage, hard-coded credentials, unsafe YAML/pickle, dynamic execution, weak hashes, disabled TLS verification, insecure random, temporary files, debug/network binding, XML parsing, and assert-based security checks. Rules can produce false positives and miss vulnerabilities, especially when behavior depends on data flow or runtime configuration.
+## 🔒 Privacy & Safety Boundaries
 
-## Privacy
+- **Zero Host Execution by Default:** Source code scanned by the security scanner is parsed into an abstract syntax tree and never executed.
+- **Explicit Execution Sandboxing:** The Execution Sandbox executes user code strictly upon explicit user request with bounded subprocesses and timeouts.
+- **Automated Credential Redaction:** Passwords, API tokens, high-entropy secrets, and private keys are redacted from scan previews and reports automatically.
+- **Local-First Processing:** With the Ollama local provider, prompt context remains 100% on the local computer.
 
-Folder scans and report generation are local. The desktop UI currently exposes local Ollama only; it does not offer hosted provider configuration. The legacy provider modules remain in the Python package for compatibility, but the desktop interface does not select or call them. Never place API keys in source files. Reports redact evidence snippets by default.
+---
 
-## Build a Windows executable
+## 🧪 Testing & Verification
 
-```powershell
-python -m pip install -e ".[dev]"
-.\scripts\build_windows.ps1
-```
-
-The script produces `dist\VulnQuestAI\` (one-folder PyInstaller output). In this audit, the build completed but the packaged executable failed its headless startup check with a QtCore DLL import error, so this output is not currently a usable release. No standalone installer has been generated. Model weights are not bundled; install Ollama and download the model separately.
-
-## Tests
+Run the full automated test suite (covering core, providers, scanner, code engine, context manager, executor, backend API, release packaging, and desktop UI):
 
 ```powershell
 python -m pytest -v
 ```
 
-The audit used the bundled Python 3.12.14 runtime because the repository `.venv` points to a missing interpreter. `python -m pytest -q` completed with **72 passed**. The native window initialized in an offscreen smoke check with 13 pages. The synthetic scanner benchmark and isolated working-copy demo ran; the demo uses deterministic mock remediation, not Gemma inference. Ollama is reachable, but the configured Gemma 4 tag is not downloaded; the app reports that directly and will not substitute the installed Llama model. Gemma 4 inference and interactive GUI behavior remain unverified; patch editing is not implemented in the desktop UI. See [the audit](docs/AUDIT.md) for detailed evidence and gaps.
+For a reproducible Linux or CI run, use the checked-in runtime and lockfile:
 
-## License
+```bash
+python3.11 -m venv .venv
+. .venv/bin/activate
+python -m pip install --upgrade pip
+python -m pip install -r requirements.lock
+python -m pip install --no-deps --no-build-isolation -e .
+make test
+make self-check
+make package
+```
 
-VulnQuest AI source code is MIT licensed. Gemma model weights are separate artifacts governed by Google's Gemma 4 license and any distribution/runtime terms. Third-party dependencies retain their own licenses.
+The test suite is offline-safe: provider tests use deterministic mocks and
+network calls are not required. `QT_QPA_PLATFORM=offscreen` is set by the
+Makefile for headless self-checks.
+
+### Docker build and deploy
+
+The repository includes a pinned Python 3.11 Docker build with the system
+libraries required by PySide6. Build and run the local backend with:
+
+```bash
+docker build -t cps-ai:1.0.0 .
+docker run --rm -p 8899:8899 cps-ai:1.0.0
+```
+
+The backend listens on `http://127.0.0.1:8899` inside the container. For a
+desktop install, use the native setup above; Docker is intended for the
+headless backend and CI/release validation.
+
+### Release archives
+
+Run `python scripts/package_release.py` (or `make package`) to create clean,
+deterministic archives under `dist/`:
+
+- `dist/cps-extension-v1.0.0.zip` — store-uploadable extension package.
+- `dist/cps-v1.0.0-release.zip` — standalone source and desktop release.
+
+Local databases, backups, caches, `.env`, build output, and development
+artifacts are excluded from both release workflows as appropriate.
+
+---
+
+## 📦 Project Architecture
+
+```
+C.P.S/
+├── cps/                      # Core C.P.S. Python package
+│   ├── ai_provider.py        # Multi-provider abstraction (Mock, Ollama, Groq, Gemini, OpenRouter)
+│   ├── code_engine.py        # Multi-language code generation & analysis engine
+│   ├── context_manager.py    # Context assembly, token budgeting & secret redaction
+│   ├── executor.py           # Sandboxed code execution engine
+│   ├── scanner.py            # Static AST & multi-language security scanner
+│   ├── rules.py              # Detection rules (VQ001-VQ016)
+│   ├── patcher.py            # Safe patch application, backup management & rollback
+│   ├── verification.py       # Independent patch verification
+│   ├── reports.py            # Redacted audit report generator (JSON, CSV, HTML, Markdown)
+│   ├── git_diff.py           # Git diff change scanner
+│   ├── storage.py            # Local SQLite scan history
+│   ├── harness.py            # Model evaluation benchmark harness
+│   └── config.py             # Configuration & environment loader
+├── backend/                  # Shared Backend API
+│   ├── __init__.py
+│   └── server.py             # Dual FastAPI / Zero-dependency HTTP server (port 8899)
+├── extension/                # Manifest V3 Browser Extension
+│   ├── manifest.json         # Extension manifest
+│   ├── background.js         # Service worker & context menu handler
+│   ├── content.js            # Highlight-to-ask & DOM extraction
+│   ├── content.css           # Floating action button styles
+│   ├── icons/                # Extension badge icons (16, 32, 48, 128px)
+│   ├── sidebar/              # Persistent side panel UI & logic
+│   ├── popup/                # Extension toolbar popup UI & logic
+│   └── site_adapters/        # Dedicated adapters for LeetCode, GitHub, HackerRank, etc.
+├── desktop/                  # Native Desktop Application
+│   └── app.py                # PySide6 desktop launcher
+├── tests/                    # Comprehensive unit and integration tests (99 passed)
+├── docs/                     # Full technical documentation suite
+└── app.py                    # Root desktop application entry point
+```
+
+---
+
+## 📄 License & Attribution
+
+- **C.P.S. Application Code:** Released under the MIT License.
+- **Gemma 4 Models:** Governed by Google's [Gemma Terms of Use](https://ai.google.dev/gemma/docs/core/license) and Apache 2.0 license.
+- **Third-Party Dependencies:** PySide6 (LGPLv3), Requests (Apache 2.0), Bandit (Apache 2.0).

@@ -66,6 +66,24 @@
   let lastRetryPayload = null;
   let conversationMessages = [];
 
+  const PROVIDER_ORIGINS = {
+    groq: 'https://api.groq.com/*',
+    gemini: 'https://generativelanguage.googleapis.com/*',
+    openrouter: 'https://openrouter.ai/*',
+  };
+
+  /**
+   * Request a hosted-provider origin only when the user chooses that provider.
+   * This keeps install-time warnings minimal while preserving direct fallback.
+   */
+  async function ensureProviderPermission(provider) {
+    const origin = PROVIDER_ORIGINS[provider];
+    if (!origin || !chrome.permissions?.request) return true;
+    const request = { origins: [origin] };
+    if (chrome.permissions.contains && await chrome.permissions.contains(request)) return true;
+    return Boolean(await chrome.permissions.request(request));
+  }
+
   // =========================================================================
   // Tab Switching
   // =========================================================================
@@ -611,8 +629,13 @@
     };
 
     try {
+      const permissionGranted = await ensureProviderPermission(settings.provider);
       await chrome.runtime.sendMessage({ type: 'SAVE_SETTINGS', settings });
       applyTheme(settings.theme);
+      if (!permissionGranted) {
+        testConnStatus.textContent = 'Saved. Allow provider access to enable direct fallback.';
+        testConnStatus.className = 'test-conn-status warning';
+      }
       saveSettingsBtn.textContent = '✅ Saved!';
       setTimeout(() => { saveSettingsBtn.textContent = '💾 Save Settings'; }, 1500);
     } catch (err) {
@@ -639,6 +662,10 @@
     testConnStatus.className = 'test-conn-status';
 
     try {
+      const permissionGranted = await ensureProviderPermission(settingProvider.value);
+      if (!permissionGranted) {
+        throw new Error('Provider access was not granted; local backend and offline mode remain available.');
+      }
       const response = await chrome.runtime.sendMessage({
         type: 'TEST_PROVIDER',
         settings: {

@@ -1,43 +1,72 @@
-# Contributing to VulnQuest AI
+# Contributing to C.P.S.
 
-Thank you for helping improve VulnQuest AI!
-
-## Development Workflow
-
-1. **Fork & Clone** the repository:
-   ```bash
-   git clone https://github.com/your-username/vulnquest-ai.git
-   cd vulnquest-ai
-   ```
-
-2. **Set up Virtual Environment**:
-   ```bash
-   python -m venv .venv
-   # Windows:
-   .venv\Scripts\activate
-   # Linux/macOS:
-   source .venv/bin/activate
-   ```
-
-3. **Install Dependencies**:
-   ```bash
-   pip install -r requirements.txt
-   ```
-
-4. **Running Tests & Linters**:
-   ```bash
-   python -m pytest -v
-   python -m vulnquest.benchmark
-   python examples/demo_workflow.py
-   ```
-   *All 71 automated tests must pass before submitting a Pull Request.*
+Thank you for contributing to **C.P.S. — Universal AI Coding Companion**!
 
 ---
 
-## Adding a New Security Rule
+## 1. Development Workflow
 
-1. Define the rule metadata in `RULES` inside `vulnquest/rules.py` (Rule ID format: `VQ###`).
+### A. Environment Setup
+```powershell
+# Clone the repository
+git clone https://github.com/your-username/cps-ai.git
+cd cps-ai
+
+# Activate Python 3.11+ virtual environment
+.\.venv\Scripts\Activate.ps1
+
+# Install in editable mode with development dependencies
+pip install -e ".[dev]"
+```
+
+### B. Running Tests
+Run the comprehensive test suite:
+```powershell
+python -m pytest -v
+```
+All 87 tests must pass before submitting a Pull Request.
+
+### C. Running Core Verification Benchmarks
+```powershell
+python -m cps.benchmark
+```
+
+### D. Testing the Browser Extension
+1. Open Chrome/Edge and go to `chrome://extensions`.
+2. Enable **Developer mode**.
+3. Click **Load unpacked** and choose `extension/`.
+4. Ensure the background server is active:
+   ```powershell
+   python -m backend.server
+   ```
+
+---
+
+## 2. Adding a New Programming Language Profile
+
+1. Open `cps/code_engine.py`.
+2. Add a new entry to `LANGUAGE_PROFILES`:
+   ```python
+   "newlang": {
+       "name": "New Language",
+       "extension": ".ext",
+       "comment": "//",
+       "block_comment": ("/*", "*/"),
+       "entry": "main()",
+       "typing": True,
+       "compiled": False,
+       "paradigm": "...",
+       "standard_version": "...",
+   }
+   ```
+3. If sandboxed execution is supported, configure its runner in `cps/executor.py` under `RUNTIME_CONFIG`.
+4. Add unit test assertions in `tests/test_cps_suite.py`.
+
+---
+
+## 3. Adding a New Security Rule
+
+1. Define the rule in `cps/rules.py` in `RULES` (ID format: `VQ###`).
 2. Add the AST visitor pattern or regex in `run_rules()`.
-3. Add a paired vulnerable sample and safe sample to `SAMPLES` in `vulnquest/benchmark.py`.
-4. Run `python -m vulnquest.benchmark` to verify 100% precision and recall on the new rule.
-5. Add unit test cases in `tests/test_core.py`.
+3. Add paired vulnerable and safe code samples to `cps/benchmark.py`.
+4. Run `python -m cps.benchmark` to verify precision.

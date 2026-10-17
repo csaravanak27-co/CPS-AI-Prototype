@@ -9,6 +9,7 @@ __pycache__/
 .coverage
 htmlcov/
 vulnquest_data/
+cps_data/
 *.db
 *.sqlite3
 .vulnquest_backup/

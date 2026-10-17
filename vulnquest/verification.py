@@ -1,9 +1,13 @@
 import ast
+import json
+from pathlib import Path
 from .rules import RULES
 from .scanner import scan_source
 
+
 def _c(name: str, status: str, detail: str) -> dict:
     return {"name": name, "status": status, "detail": detail}
+
 
 def get_ast_signatures(src: str) -> dict:
     """Extracts top-level and class-level API names and parameters from AST without executing code."""
@@ -22,6 +26,7 @@ def get_ast_signatures(src: str) -> dict:
             sigs[f"class:{node.name}"] = methods
     return sigs
 
+
 def match_findings(before_findings: list, after_findings: list, target_rule: str = None, target_line: int = None):
     """
     Matches findings between before and after versions by rule_id, file, line proximity, and code snippet.
@@ -34,9 +39,7 @@ def match_findings(before_findings: list, after_findings: list, target_rule: str
     for b in before_findings:
         match_idx = None
         for i, a in enumerate(unmatched_after):
-            # Same rule and file
             if a.rule_id == b.rule_id and a.file == b.file:
-                # Check line proximity (within 10 lines) or exact snippet match
                 if abs(a.line - b.line) <= 10 or (b.snippet and b.snippet in a.snippet):
                     match_idx = i
                     break
@@ -47,7 +50,6 @@ def match_findings(before_findings: list, after_findings: list, target_rule: str
 
     new_findings = unmatched_after
 
-    # Determine target status
     if target_rule:
         target_in_before = any(b.rule_id == target_rule and (target_line is None or abs(b.line - target_line) <= 2) for b in before_findings)
         target_in_remaining = any(r.rule_id == target_rule and (target_line is None or abs(r.line - (target_line or 0)) <= 10) for r in remaining)
@@ -66,6 +68,7 @@ def match_findings(before_findings: list, after_findings: list, target_rule: str
 
     return resolved, remaining, new_findings, target_status
 
+
 def verify(path: str, original: str, patched: str, target_rule: str = None, target_line: int = None, regression_passed: bool = None) -> dict:
     """
     Comprehensive, independent verification of proposed patch.
@@ -73,16 +76,74 @@ def verify(path: str, original: str, patched: str, target_rule: str = None, targ
     """
     checks = []
 
-    # 1. Syntax validation
-    try:
-        compile(patched, path, "exec")
-        syntax = True
-        syntax_status = "Passed"
-        checks.append(_c("Syntax validation", "passed", "patched source compiles without syntax errors (not executed)"))
-    except SyntaxError as e:
-        syntax = False
-        syntax_status = "Failed"
-        checks.append(_c("Syntax validation", "failed", f"Syntax error at line {e.lineno}: {e.msg}"))
+    # 1. Multi-language syntax validation
+    ext = Path(path).suffix.lower() if path else ".py"
+    syntax = True
+    syntax_status = "Passed"
+
+    if ext in (".py", ".pyw"):
+        try:
+            compile(patched, path, "exec")
+            checks.append(_c("Syntax validation", "passed", "patched Python source compiles without syntax errors (not executed)"))
+        except SyntaxError as e:
+            syntax = False
+            syntax_status = "Failed"
+            checks.append(_c("Syntax validation", "failed", f"Syntax error at line {e.lineno}: {e.msg}"))
+    elif ext == ".json":
+        try:
+            json.loads(patched)
+            checks.append(_c("Syntax validation", "passed", "patched JSON document parsed successfully"))
+        except Exception as e:
+            syntax = False
+            syntax_status = "Failed"
+            checks.append(_c("Syntax validation", "failed", f"JSON parsing error: {e}"))
+    else:
+        # Generic bracket and structure balance check for multi-language sources (JS, TS, C, Java, Go, Rust, etc.)
+        if "\x00" in patched:
+            syntax = False
+            syntax_status = "Failed"
+            checks.append(_c("Syntax validation", "failed", "Binary null character detected in text source"))
+        else:
+            pairs = {')': '(', ']': '[', '}': '{'}
+            stack = []
+            balanced = True
+            mismatch_err = ""
+            in_str = None
+            escape = False
+            lines = patched.splitlines()
+            for line_idx, line in enumerate(lines, 1):
+                for ch in line:
+                    if in_str:
+                        if escape:
+                            escape = False
+                        elif ch == '\\':
+                            escape = True
+                        elif ch == in_str:
+                            in_str = None
+                    elif ch in ('"', "'", '`'):
+                        in_str = ch
+                    elif ch in ('(', '[', '{'):
+                        stack.append((ch, line_idx))
+                    elif ch in (')', ']', '}'):
+                        if not stack or stack[-1][0] != pairs[ch]:
+                            balanced = False
+                            mismatch_err = f"Unmatched '{ch}' at line {line_idx}"
+                            break
+                        stack.pop()
+                if not balanced:
+                    break
+
+            if balanced and stack:
+                unclosed, u_line = stack[-1]
+                balanced = False
+                mismatch_err = f"Unclosed '{unclosed}' opened at line {u_line}"
+
+            if balanced:
+                checks.append(_c("Syntax validation", "passed", f"Source structure and delimiter balance verified ({ext or 'generic'})"))
+            else:
+                syntax = False
+                syntax_status = "Failed"
+                checks.append(_c("Syntax validation", "failed", f"Structural syntax issue: {mismatch_err}"))
 
     # 2. Rescan & Finding matching
     before_findings, _ = scan_source(original, path)
@@ -102,7 +163,6 @@ def verify(path: str, original: str, patched: str, target_rule: str = None, targ
         checks.append(_c("New findings", "passed" if new_count == 0 else "failed",
                          "no new findings introduced" if new_count == 0 else f"{new_count} new finding(s) introduced"))
 
-        # Target finding resolution check
         if target_rule:
             if target_status == "Resolved":
                 checks.append(_c("Target finding", "passed", f"{target_rule} confirmed resolved"))
@@ -173,12 +233,12 @@ def verify(path: str, original: str, patched: str, target_rule: str = None, targ
 
     return {
         "file": path,
-        "status": status,                     # Backwards-compatible status string
-        "overall_result": overall_result,     # Standardized category
-        "syntax_status": syntax_status,       # Passed / Failed / Not run
-        "target_status": target_status,       # Resolved / Still present / Inconclusive / Not specified
-        "new_findings_status": new_status,    # None detected / Detected / Scan failed
-        "regression_status": regression_status, # Passed / Failed / Not run
+        "status": status,
+        "overall_result": overall_result,
+        "syntax_status": syntax_status,
+        "target_status": target_status,
+        "new_findings_status": new_status,
+        "regression_status": regression_status,
         "checks": checks,
         "resolved": resolved_count,
         "remaining": remaining_count,

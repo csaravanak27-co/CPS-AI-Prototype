@@ -3,14 +3,14 @@ requires = ["setuptools>=77", "wheel"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "vulnquest-ai"
-version = "0.2.0"
-description = "Autonomous Application Security & Remediation Analyst"
+name = "cps-ai"
+version = "1.0.0"
+description = "C.P.S. — Universal AI Coding Companion, Browser Extension & Security Platform"
 readme = "README.md"
 requires-python = ">=3.11"
-license = "MIT"
+license = { text = "MIT" }
 authors = [
-    { name = "VulnQuest AI Team" }
+    { name = "C.P.S. Team" }
 ]
 dependencies = [
     "PySide6>=6.7,<7",
@@ -21,10 +21,11 @@ dependencies = [
 
 [project.optional-dependencies]
 dev = ["pytest>=8.0", "pyinstaller>=6.0"]
+api = ["fastapi>=0.100", "uvicorn>=0.20"]
 
 [tool.setuptools.packages.find]
 where = ["."]
-include = ["vulnquest", "vulnquest.*"]
+include = ["cps", "cps.*", "backend", "backend.*", "desktop", "desktop.*", "vulnquest", "vulnquest.*"]
 namespaces = false
 
 [tool.pytest.ini_options]

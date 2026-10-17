@@ -8,12 +8,16 @@
     "activeTab",
     "storage",
     "sidePanel",
-    "contextMenus"
+    "contextMenus",
+    "permissions"
   ],
 
   "host_permissions": [
     "http://localhost:8899/*",
-    "http://127.0.0.1:8899/*",
+    "http://127.0.0.1:8899/*"
+  ],
+
+  "optional_host_permissions": [
     "https://api.groq.com/*",
     "https://generativelanguage.googleapis.com/*",
     "https://openrouter.ai/*"
