@@ -1,0 +1,355 @@
+/* ============================================================================
+ * C.P.S. — AI Coding Companion
+ * Content Script Styles
+ *
+ * Styles for the floating action button (FAB) and action dropdown menu
+ * that appear when the user selects text on any webpage.
+ *
+ * Design principles:
+ *   - Non-intrusive: small, unobtrusive button near the selection
+ *   - High z-index: always visible above page content
+ *   - Dark theme: matches the C.P.S. brand (#0b1220 scheme)
+ *   - Smooth transitions: polished, professional feel
+ *   - Responsive: adapts to viewport boundaries
+ * ============================================================================ */
+
+/* --------------------------------------------------------------------------
+ * CSS Custom Properties (scoped to our root element)
+ * -------------------------------------------------------------------------- */
+.cps-ext-root {
+  --cps-bg-primary: #0b1220;
+  --cps-bg-secondary: #111d32;
+  --cps-bg-hover: #1a2940;
+  --cps-bg-active: #243550;
+  --cps-text-primary: #e8edf5;
+  --cps-text-secondary: #8899b0;
+  --cps-text-muted: #5a6a80;
+  --cps-accent: #4f8ff7;
+  --cps-accent-hover: #6ba3ff;
+  --cps-accent-glow: rgba(79, 143, 247, 0.25);
+  --cps-border: #1e2d44;
+  --cps-shadow: 0 8px 32px rgba(0, 0, 0, 0.45), 0 2px 8px rgba(0, 0, 0, 0.3);
+  --cps-shadow-sm: 0 2px 12px rgba(0, 0, 0, 0.35);
+  --cps-radius: 10px;
+  --cps-radius-sm: 6px;
+  --cps-transition: 180ms ease;
+  --cps-font: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+}
+
+/* --------------------------------------------------------------------------
+ * Floating Action Button (FAB)
+ * -------------------------------------------------------------------------- */
+#cps-fab {
+  position: fixed;
+  z-index: 2147483646;
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  background: var(--cps-bg-primary);
+  border: 1.5px solid var(--cps-border);
+  color: var(--cps-accent);
+  font-size: 18px;
+  line-height: 1;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: var(--cps-shadow-sm);
+  opacity: 0;
+  transform: scale(0.5);
+  transition:
+    opacity var(--cps-transition),
+    transform var(--cps-transition),
+    background var(--cps-transition),
+    border-color var(--cps-transition),
+    box-shadow var(--cps-transition);
+  pointer-events: none;
+  font-family: var(--cps-font);
+  user-select: none;
+  -webkit-user-select: none;
+  /* Reset any page styles that might leak in */
+  box-sizing: border-box;
+  padding: 0;
+  margin: 0;
+  text-decoration: none;
+  text-transform: none;
+  letter-spacing: normal;
+  word-spacing: normal;
+  text-indent: 0;
+  text-align: center;
+}
+
+#cps-fab.cps-visible {
+  opacity: 1;
+  transform: scale(1);
+  pointer-events: auto;
+}
+
+#cps-fab:hover {
+  background: var(--cps-bg-secondary);
+  border-color: var(--cps-accent);
+  box-shadow: var(--cps-shadow-sm), 0 0 12px var(--cps-accent-glow);
+  transform: scale(1.1);
+}
+
+#cps-fab:active {
+  transform: scale(0.95);
+  background: var(--cps-bg-active);
+}
+
+/* Pulse animation when first appearing */
+@keyframes cps-pulse {
+  0% { box-shadow: var(--cps-shadow-sm); }
+  50% { box-shadow: var(--cps-shadow-sm), 0 0 16px var(--cps-accent-glow); }
+  100% { box-shadow: var(--cps-shadow-sm); }
+}
+
+#cps-fab.cps-visible {
+  animation: cps-pulse 2s ease-in-out 1;
+}
+
+/* --------------------------------------------------------------------------
+ * Action Dropdown Menu
+ * -------------------------------------------------------------------------- */
+#cps-dropdown {
+  position: fixed;
+  z-index: 2147483647;
+  min-width: 220px;
+  max-width: 280px;
+  max-height: 420px;
+  overflow-y: auto;
+  overflow-x: hidden;
+  background: var(--cps-bg-primary);
+  border: 1px solid var(--cps-border);
+  border-radius: var(--cps-radius);
+  box-shadow: var(--cps-shadow);
+  padding: 6px 0;
+  opacity: 0;
+  transform: translateY(-8px) scale(0.96);
+  transition:
+    opacity var(--cps-transition),
+    transform var(--cps-transition);
+  pointer-events: none;
+  font-family: var(--cps-font);
+  box-sizing: border-box;
+  /* Custom scrollbar */
+  scrollbar-width: thin;
+  scrollbar-color: var(--cps-bg-hover) transparent;
+}
+
+#cps-dropdown::-webkit-scrollbar {
+  width: 5px;
+}
+
+#cps-dropdown::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+#cps-dropdown::-webkit-scrollbar-thumb {
+  background: var(--cps-bg-hover);
+  border-radius: 3px;
+}
+
+#cps-dropdown.cps-visible {
+  opacity: 1;
+  transform: translateY(0) scale(1);
+  pointer-events: auto;
+}
+
+/* --------------------------------------------------------------------------
+ * Dropdown Header
+ * -------------------------------------------------------------------------- */
+.cps-dropdown-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 14px 10px;
+  border-bottom: 1px solid var(--cps-border);
+  margin-bottom: 4px;
+}
+
+.cps-dropdown-header .cps-logo {
+  font-size: 14px;
+  color: var(--cps-accent);
+  flex-shrink: 0;
+}
+
+.cps-dropdown-header .cps-title {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--cps-text-secondary);
+  text-transform: uppercase;
+  letter-spacing: 0.8px;
+}
+
+/* --------------------------------------------------------------------------
+ * Dropdown Section Label
+ * -------------------------------------------------------------------------- */
+.cps-dropdown-section {
+  padding: 6px 14px 4px;
+  font-size: 10px;
+  font-weight: 600;
+  color: var(--cps-text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.7px;
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+/* --------------------------------------------------------------------------
+ * Dropdown Action Items
+ * -------------------------------------------------------------------------- */
+.cps-dropdown-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 14px;
+  font-size: 13px;
+  color: var(--cps-text-primary);
+  cursor: pointer;
+  transition:
+    background var(--cps-transition),
+    color var(--cps-transition);
+  border: none;
+  background: none;
+  width: 100%;
+  text-align: left;
+  font-family: var(--cps-font);
+  box-sizing: border-box;
+  line-height: 1.3;
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+.cps-dropdown-item:hover {
+  background: var(--cps-bg-hover);
+  color: var(--cps-accent-hover);
+}
+
+.cps-dropdown-item:active {
+  background: var(--cps-bg-active);
+}
+
+.cps-dropdown-item .cps-item-icon {
+  font-size: 15px;
+  flex-shrink: 0;
+  width: 20px;
+  text-align: center;
+  opacity: 0.85;
+}
+
+.cps-dropdown-item .cps-item-label {
+  flex: 1;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.cps-dropdown-item .cps-item-shortcut {
+  font-size: 10px;
+  color: var(--cps-text-muted);
+  margin-left: auto;
+  flex-shrink: 0;
+}
+
+/* --------------------------------------------------------------------------
+ * Dropdown Divider
+ * -------------------------------------------------------------------------- */
+.cps-dropdown-divider {
+  height: 1px;
+  background: var(--cps-border);
+  margin: 4px 10px;
+}
+
+/* --------------------------------------------------------------------------
+ * Selection Highlight Overlay (optional visual feedback)
+ * -------------------------------------------------------------------------- */
+.cps-selection-highlight {
+  background: var(--cps-accent-glow) !important;
+  border-radius: 2px;
+}
+
+/* --------------------------------------------------------------------------
+ * Toast Notification (for copy confirmation, errors, etc.)
+ * -------------------------------------------------------------------------- */
+#cps-toast {
+  position: fixed;
+  z-index: 2147483647;
+  bottom: 24px;
+  right: 24px;
+  padding: 10px 18px;
+  background: var(--cps-bg-secondary);
+  color: var(--cps-text-primary);
+  border: 1px solid var(--cps-border);
+  border-radius: var(--cps-radius-sm);
+  font-size: 13px;
+  font-family: var(--cps-font);
+  box-shadow: var(--cps-shadow-sm);
+  opacity: 0;
+  transform: translateY(12px);
+  transition:
+    opacity 250ms ease,
+    transform 250ms ease;
+  pointer-events: none;
+}
+
+#cps-toast.cps-visible {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+#cps-toast.cps-toast-success {
+  border-left: 3px solid #34d399;
+}
+
+#cps-toast.cps-toast-error {
+  border-left: 3px solid #f87171;
+}
+
+#cps-toast.cps-toast-info {
+  border-left: 3px solid var(--cps-accent);
+}
+
+/* --------------------------------------------------------------------------
+ * Responsive adjustments
+ * -------------------------------------------------------------------------- */
+@media (max-width: 480px) {
+  #cps-dropdown {
+    min-width: 180px;
+    max-width: 240px;
+  }
+
+  .cps-dropdown-item {
+    padding: 7px 12px;
+    font-size: 12px;
+  }
+
+  #cps-fab {
+    width: 32px;
+    height: 32px;
+    font-size: 16px;
+  }
+}
+
+/* --------------------------------------------------------------------------
+ * Print: hide all C.P.S. UI elements
+ * -------------------------------------------------------------------------- */
+@media print {
+  #cps-fab,
+  #cps-dropdown,
+  #cps-toast {
+    display: none !important;
+  }
+}
+
+/* --------------------------------------------------------------------------
+ * Reduced motion preference
+ * -------------------------------------------------------------------------- */
+@media (prefers-reduced-motion: reduce) {
+  #cps-fab,
+  #cps-dropdown,
+  #cps-toast {
+    transition: none !important;
+    animation: none !important;
+  }
+}
