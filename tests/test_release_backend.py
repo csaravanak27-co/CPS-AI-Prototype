@@ -142,6 +142,18 @@ def test_local_backend_is_loopback_only_and_has_lifecycle():
     assert not backend.running
 
 
+def test_local_backend_reuses_an_existing_cps_listener():
+    owner = LocalBackend("127.0.0.1", 0).start()
+    port = owner.address[1]
+    attached = LocalBackend("127.0.0.1", port).start()
+    try:
+        assert attached.running
+        attached.stop()
+        assert owner.running
+    finally:
+        owner.stop()
+
+
 def test_release_metadata_and_installer_are_synchronized():
     root = Path(__file__).parents[1]
     with (root / "pyproject.toml").open("rb") as fh:
