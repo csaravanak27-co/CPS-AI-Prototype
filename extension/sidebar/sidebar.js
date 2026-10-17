@@ -20,6 +20,9 @@
   // Header
   const connDot = document.getElementById('connDot');
   const connText = document.getElementById('connText');
+  const setupGuidance = document.getElementById('setupGuidance');
+  const setupGuidanceTitle = document.getElementById('setupGuidanceTitle');
+  const setupGuidanceSteps = document.getElementById('setupGuidanceSteps');
 
   // Tabs
   const tabBtns = document.querySelectorAll('.tab-btn');
@@ -341,6 +344,7 @@
         const aiText = responseToText(response.data);
         displayMessage('assistant', aiText);
         conversationMessages.push({ role: 'assistant', content: aiText, timestamp: new Date().toISOString() });
+        if (response.setup) showSetupGuidance(response);
       } else {
         const errMsg = response?.error || 'Unknown error occurred';
         displayMessage('error', errMsg);
@@ -679,16 +683,18 @@
       if (response && response.connected) {
         testConnStatus.textContent = `✅ ${response.message || 'Connected!'}`;
         testConnStatus.className = 'test-conn-status success';
-        updateConnectionStatus(true);
+        updateConnectionStatus(response);
       } else {
         testConnStatus.textContent = `❌ ${response?.message || 'Failed'}`;
         testConnStatus.className = 'test-conn-status error';
-        updateConnectionStatus(false);
+        updateConnectionStatus(response);
+        showSetupGuidance(response);
       }
     } catch (err) {
       testConnStatus.textContent = `❌ ${err.message}`;
       testConnStatus.className = 'test-conn-status error';
-      updateConnectionStatus(false);
+      updateConnectionStatus({ connected: false });
+      showSetupGuidance();
     } finally {
       testConnBtn.disabled = false;
     }
@@ -708,11 +714,32 @@
 
   /**
    * Updates the connection status indicator in the header.
-   * @param {boolean} connected
+   * @param {boolean|Object} state
    */
-  function updateConnectionStatus(connected) {
+  function updateConnectionStatus(state) {
+    const response = state && typeof state === 'object' ? state : { connected: state === true };
+    const connected = response.connected === true;
     connDot.classList.toggle('connected', connected);
-    connText.textContent = connected ? 'Online' : 'Offline';
+    connText.textContent = connected
+      ? (response.mode === 'direct'
+        ? (response.backendStatus === 'backend-stopped' ? 'Provider online; backend stopped' : 'Provider online')
+        : 'Backend connected')
+      : (response.backendStatus === 'backend-stopped' ? 'Backend not running' : 'Offline');
+  }
+
+  function showSetupGuidance(response) {
+    if (!setupGuidance || !response?.setup?.steps?.length) {
+      if (setupGuidance) setupGuidance.hidden = true;
+      return;
+    }
+    setupGuidance.hidden = false;
+    setupGuidanceTitle.textContent = response.setup.title || 'Connection setup';
+    setupGuidanceSteps.replaceChildren();
+    response.setup.steps.forEach((step) => {
+      const item = document.createElement('li');
+      item.textContent = step;
+      setupGuidanceSteps.appendChild(item);
+    });
   }
 
   /**
@@ -721,9 +748,11 @@
   async function checkConnectionStatus() {
     try {
       const response = await chrome.runtime.sendMessage({ type: 'CHECK_CONNECTION' });
-      updateConnectionStatus(response?.connected === true);
+      updateConnectionStatus(response);
+      showSetupGuidance(response);
     } catch {
-      updateConnectionStatus(false);
+      updateConnectionStatus({ connected: false });
+      showSetupGuidance();
     }
   }
 

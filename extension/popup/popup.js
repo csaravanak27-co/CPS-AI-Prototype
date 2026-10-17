@@ -17,9 +17,18 @@
   const statusDot = document.getElementById('statusDot');
   const statusText = document.getElementById('statusText');
   const statusMessage = document.getElementById('statusMessage');
+  const setupGuidance = document.getElementById('setupGuidance');
+  const setupGuidanceTitle = document.getElementById('setupGuidanceTitle');
+  const setupGuidanceSteps = document.getElementById('setupGuidanceSteps');
 
   const actionSidebar = document.getElementById('actionSidebar');
   const actionCards = document.querySelectorAll('.action-card[data-action]');
+
+  const CONTENT_SCRIPT_FILES = [
+    'shared/browser-api.js',
+    'site_adapters/adapters.js',
+    'content.js',
+  ];
 
   // -------------------------------------------------------------------------
   // Connection Check
@@ -37,16 +46,37 @@
 
       if (response && response.connected) {
         statusDot.classList.add('connected');
-        statusText.textContent = response.mode === 'direct' ? 'Provider online' : 'Connected';
+        statusText.textContent = response.mode === 'direct'
+          ? (response.backendStatus === 'backend-stopped' ? 'Provider online; backend stopped' : 'Provider online')
+          : 'Backend connected';
+        renderSetupGuidance(response);
+        if (response.backendMessage) showStatus(response.backendMessage, 'info');
       } else {
-        statusText.textContent = 'Offline';
-        showStatus(response?.message || 'Offline guidance is available. Configure a provider in Settings.', 'error');
+        statusText.textContent = response?.backendStatus === 'backend-stopped' ? 'Backend not running' : 'Offline';
+        showStatus(response?.message || 'Offline guidance is available. Choose a provider in Settings.', 'error');
+        renderSetupGuidance(response);
       }
     } catch (err) {
       statusText.textContent = 'Error';
       showStatus('Could not communicate with extension background.', 'error');
+      renderSetupGuidance();
       console.error('[C.P.S. Popup] Connection check failed:', err);
     }
+  }
+
+  function renderSetupGuidance(response) {
+    if (!setupGuidance || !response?.setup?.steps?.length) {
+      if (setupGuidance) setupGuidance.hidden = true;
+      return;
+    }
+    setupGuidance.hidden = false;
+    setupGuidanceTitle.textContent = response.setup.title || 'Connection setup';
+    setupGuidanceSteps.replaceChildren();
+    response.setup.steps.forEach((step) => {
+      const item = document.createElement('li');
+      item.textContent = step;
+      setupGuidanceSteps.appendChild(item);
+    });
   }
 
   // -------------------------------------------------------------------------
@@ -120,8 +150,15 @@
         return { text: '', url: '', siteName: '' };
       }
 
-      const response = await chrome.tabs.sendMessage(tab.id, { type: 'GET_SELECTION' });
-      return response || { text: '', url: '', siteName: '' };
+      try {
+        const response = await chrome.tabs.sendMessage(tab.id, { type: 'GET_SELECTION' });
+        return response || { text: '', url: '', siteName: '' };
+      } catch (firstError) {
+        if (!chrome.scripting?.executeScript) throw firstError;
+        await chrome.scripting.executeScript({ target: { tabId: tab.id }, files: CONTENT_SCRIPT_FILES });
+        const response = await chrome.tabs.sendMessage(tab.id, { type: 'GET_SELECTION' });
+        return response || { text: '', url: '', siteName: '' };
+      }
     } catch (err) {
       console.warn('[C.P.S. Popup] Could not get selection:', err);
       return { text: '', url: '', siteName: '' };

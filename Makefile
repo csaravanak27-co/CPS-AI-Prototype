@@ -1,6 +1,6 @@
 PYTHON ?= python
 
-.PHONY: test self-check package docker-run
+.PHONY: test self-check package package-windows docker-run
 
 test:
 	QT_QPA_PLATFORM=offscreen $(PYTHON) -m pytest -v
@@ -10,6 +10,9 @@ self-check:
 
 package:
 	$(PYTHON) scripts/package_release.py
+
+package-windows:
+	powershell -NoProfile -ExecutionPolicy Bypass -File scripts/build_windows.ps1 -BuildInstaller
 
 docker-run:
 	docker build -t cps-ai:1.0.0 .

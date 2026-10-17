@@ -9,7 +9,7 @@
     "storage",
     "sidePanel",
     "contextMenus",
-    "permissions"
+    "scripting"
   ],
 
   "host_permissions": [
@@ -57,7 +57,24 @@
 
   "content_scripts": [
     {
-      "matches": ["<all_urls>"],
+      "matches": [
+        "https://leetcode.com/*",
+        "https://*.leetcode.com/*",
+        "https://hackerrank.com/*",
+        "https://*.hackerrank.com/*",
+        "https://codeforces.com/*",
+        "https://*.codeforces.com/*",
+        "https://codechef.com/*",
+        "https://*.codechef.com/*",
+        "https://geeksforgeeks.org/*",
+        "https://*.geeksforgeeks.org/*",
+        "https://github.com/*",
+        "https://*.github.com/*",
+        "https://gitlab.com/*",
+        "https://*.gitlab.com/*",
+        "https://stackoverflow.com/*",
+        "https://*.stackoverflow.com/*"
+      ],
       "js": ["shared/browser-api.js", "site_adapters/adapters.js", "content.js"],
       "run_at": "document_idle"
     }

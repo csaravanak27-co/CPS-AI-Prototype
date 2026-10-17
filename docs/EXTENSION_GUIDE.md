@@ -6,8 +6,14 @@ The C.P.S. Browser Extension is compatible with **Google Chrome, Microsoft Edge,
 
 ## 1. Unpacked Installation (Local Development)
 
-### Step 1: Start the C.P.S. Backend Server
-The extension communicates with the local C.P.S. backend engine for AI processing and security scans:
+### Step 1: Install or start the local companion
+For customers, install the Windows desktop companion and launch the **C.P.S.**
+shortcut. The installer creates a shortcut that starts the desktop app with the
+local backend enabled. The backend binds only to `127.0.0.1` and does not need a
+separate terminal window.
+
+For a source checkout/developer setup, the extension communicates with the local
+C.P.S. backend engine for AI processing and security scans:
 
 ```powershell
 python -m backend.server
@@ -41,6 +47,11 @@ Confirm the console outputs:
 3. Open the C.P.S. sidebar from the Firefox sidebar button. The extension uses
    `sidebar_action` when Firefox does not provide Chromium's `sidePanel` API.
 
+If the desktop companion is not installed or the backend is stopped, the
+extension displays setup guidance and can still use its offline provider. A
+configured direct provider is optional; it is never required to install or use
+local scanning features.
+
 ### Provider fallback and settings
 Open the sidebar's **Settings** tab to save the backend URL, provider, model, and
 API key in browser-local storage. **Test Provider Connection** checks the selected
@@ -62,7 +73,9 @@ history entries.
   - **Settings:** Custom backend endpoints, provider selection, and themes.
 
 ### B. Highlight-to-Ask
-1. Highlight any snippet of code or problem statement on any webpage.
+1. On a supported coding site, highlight a snippet of code or problem statement.
+   On another site, first invoke C.P.S. from the toolbar or context menu; the
+   selection helper is added only for that user-initiated action.
 2. A non-intrusive floating **⚡ C.P.S.** action button appears near your cursor.
 3. Click it to choose from 11 specialized actions:
    - *Explain Selection*
@@ -88,26 +101,23 @@ C.P.S. includes dedicated adapters that automatically extract problem statements
 
 ---
 
-## 3. Chrome Web Store & Edge Add-ons Submission Guide
+## 3. Official-store distribution (placeholder)
 
-When preparing for official public distribution:
+The project is not claiming an official store publication. Before a publisher
+uploads a package, read `docs/STORE_LISTING.md` for reviewed copy and
+`docs/STORE_RELEASE.md` for the release checklist. The publisher should use
+the current official Chrome Web Store or Microsoft Edge Add-ons dashboard and
+record the resulting listing identifier only after approval.
 
-### Packaging
-1. Zip the contents of the `extension/` folder (ensure `manifest.json` is at the root of the ZIP, not nested inside an extra folder):
-   ```powershell
-   Compress-Archive -Path extension\* -DestinationPath dist\cps-extension-v1.0.0.zip
-   ```
+### Deterministic packaging
 
-### Chrome Web Store Developer Dashboard
-1. Register at the [Chrome Web Store Developer Dashboard](https://chrome.google.com/webstore/devconsole).
-2. Pay the one-time $5 developer registration fee.
-3. Click **Add new item** and upload `cps-extension-v1.0.0.zip`.
-4. Fill in store listing metadata:
-   - Category: *Developer Tools*
-   - Privacy disclosures: Declare that `activeTab` and `storage` are used for user-initiated coding help.
-   - Attach screenshots of the Sidebar and Highlight-to-Ask action.
-5. Submit for automated and manual review (typically 24–72 hours).
+Run the offline validation and package commands from the repository root:
 
-### Microsoft Edge Add-ons Dashboard
-1. Register at the [Microsoft Partner Center](https://partner.microsoft.com/dashboard/microsoftedge).
-2. Edge allows direct import of approved Chrome Web Store listings or standalone ZIP submissions with zero fee.
+```bash
+python scripts/validate_extension.py
+python scripts/package_release.py
+```
+
+The extension ZIP has `manifest.json` at its root and is checked for stable
+ordering, timestamps, required assets, narrow permissions, and excluded local
+data. No store URL or publication status is assigned by this repository.

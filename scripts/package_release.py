@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import os
 import sys
+import json
 import zipfile
 from pathlib import Path
 
@@ -40,6 +41,29 @@ EXCLUDE_DIRS = frozenset({
 EXCLUDE_SUFFIXES = (".egg-info",)
 EXCLUDE_FILES = frozenset({".env", "history.db", "backend_settings.json"})
 EXCLUDE_EXTENSIONS = frozenset({".pyc", ".pyo", ".log", ".tmp", ".sqlite", ".sqlite3", ".db"})
+
+STORE_PERMISSIONS = frozenset({"activeTab", "storage", "sidePanel", "contextMenus", "scripting"})
+STORE_HOST_PERMISSIONS = frozenset({"http://localhost:8899/*", "http://127.0.0.1:8899/*"})
+STORE_OPTIONAL_HOST_PERMISSIONS = frozenset({
+    "https://api.groq.com/*",
+    "https://generativelanguage.googleapis.com/*",
+    "https://openrouter.ai/*",
+})
+STORE_REQUIRED_FILES = frozenset({
+    "manifest.json",
+    "background.js",
+    "content.js",
+    "shared/browser-api.js",
+    "site_adapters/adapters.js",
+    "popup/popup.html",
+    "popup/popup.js",
+    "sidebar/sidebar.html",
+    "sidebar/sidebar.js",
+    "icons/16.png",
+    "icons/32.png",
+    "icons/48.png",
+    "icons/128.png",
+})
 
 
 def _is_excluded_file(path: Path) -> bool:
@@ -85,14 +109,79 @@ def _write_zip(destination: Path, files: list[tuple[Path, str]]) -> None:
             archive.writestr(info, source.read_bytes())
 
 
+def _store_validation_errors(names: set[str], manifest: dict) -> list[str]:
+    errors = []
+    missing = sorted(STORE_REQUIRED_FILES - names)
+    if missing:
+        errors.append(f"missing required files: {', '.join(missing)}")
+    if manifest.get("manifest_version") != 3:
+        errors.append("manifest_version must be 3")
+    if not isinstance(manifest.get("version"), str) or not manifest["version"]:
+        errors.append("manifest version must be a non-empty string")
+    permissions = frozenset(manifest.get("permissions", []))
+    if permissions != STORE_PERMISSIONS:
+        errors.append(f"permissions must be exactly {sorted(STORE_PERMISSIONS)}")
+    if frozenset(manifest.get("host_permissions", [])) != STORE_HOST_PERMISSIONS:
+        errors.append("host_permissions must contain only the local backend origins")
+    if frozenset(manifest.get("optional_host_permissions", [])) != STORE_OPTIONAL_HOST_PERMISSIONS:
+        errors.append("optional_host_permissions do not match the supported direct providers")
+    matches = [match for script in manifest.get("content_scripts", []) for match in script.get("matches", [])]
+    if any(match == "<all_urls>" or "*://*/*" in match for match in matches):
+        errors.append("content scripts must not use broad all-site matches")
+    for name in names:
+        if name.startswith("/") or "\\" in name or name.startswith((".env", ".git", "__pycache__/")):
+            errors.append(f"unsafe store archive path: {name}")
+    return errors
+
+
+def validate_extension_tree(extension_root: Path | None = None) -> None:
+    """Validate the unpacked extension before it is offered as a store package."""
+    extension_root = extension_root or ROOT / "extension"
+    manifest_path = extension_root / "manifest.json"
+    if not manifest_path.is_file():
+        raise ValueError("extension manifest.json is missing")
+    try:
+        manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError) as exc:
+        raise ValueError(f"extension manifest.json is not valid JSON: {exc}") from exc
+    names = {path.relative_to(extension_root).as_posix() for path in _iter_files(extension_root, extension_only=True)}
+    errors = _store_validation_errors(names, manifest)
+    if errors:
+        raise ValueError("invalid store package: " + "; ".join(errors))
+
+
+def validate_store_package(package_path: Path, expected_version: str | None = None) -> None:
+    """Validate a built ZIP has a store-safe root and deterministic metadata."""
+    with zipfile.ZipFile(package_path) as archive:
+        infos = archive.infolist()
+        names = {info.filename for info in infos}
+        if len(names) != len(infos):
+            raise ValueError("store package contains duplicate paths")
+        if any(info.date_time != _ZIP_TIMESTAMP for info in infos):
+            raise ValueError("store package contains non-deterministic timestamps")
+        if any(name.startswith("extension/") for name in names):
+            raise ValueError("manifest.json must be at the ZIP root")
+        try:
+            manifest = json.loads(archive.read("manifest.json"))
+        except (KeyError, json.JSONDecodeError) as exc:
+            raise ValueError(f"store package manifest is invalid: {exc}") from exc
+        if expected_version and manifest.get("version") != expected_version:
+            raise ValueError("store package version does not match the requested version")
+        errors = _store_validation_errors(names, manifest)
+        if errors:
+            raise ValueError("invalid store package: " + "; ".join(errors))
+
+
 def build_extension_archive(destination: Path | None = None) -> Path:
     destination = destination or DIST / f"cps-extension-v{VERSION}.zip"
     extension_root = ROOT / "extension"
+    validate_extension_tree(extension_root)
     files = [
         (path, path.relative_to(extension_root).as_posix())
         for path in _iter_files(extension_root, extension_only=True)
     ]
     _write_zip(destination, files)
+    validate_store_package(destination, VERSION)
     return destination
 
 

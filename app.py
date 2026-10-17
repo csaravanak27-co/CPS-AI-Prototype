@@ -25,13 +25,14 @@ from pathlib import Path
 from typing import Optional
 
 try:
-    from PySide6.QtCore import QThread, Signal, Qt
+    from PySide6.QtCore import QThread, Signal, Qt, QTimer, QUrl
     from PySide6.QtWidgets import (
         QApplication, QComboBox, QFileDialog, QGroupBox, QHBoxLayout,
         QHeaderView, QLabel, QLineEdit, QMainWindow, QMessageBox,
         QPushButton, QScrollArea, QSplitter, QStackedWidget,
         QTableWidget, QTableWidgetItem, QTextEdit, QVBoxLayout, QWidget,
     )
+    from PySide6.QtGui import QDesktopServices
 except ImportError as exc:
     if "--self-check" in sys.argv:
         print(f"C.P.S. self-check unavailable: {type(exc).__name__}: {exc}")
@@ -50,6 +51,7 @@ from cps.patcher import apply_patch, build_patched, rollback, unified_diff
 from cps.reports import build_report, to_csv, to_html, to_json, to_markdown
 from cps.scanner import read_folder, scan_files, scan_source
 from cps.verification import verify
+from backend.runtime import LocalBackend
 
 
 class ScanWorker(QThread):
@@ -160,7 +162,7 @@ class CPSMainWindow(QMainWindow):
         "Settings & Privacy",
     ]
 
-    def __init__(self):
+    def __init__(self, backend: LocalBackend | None = None):
         super().__init__()
         self.setWindowTitle(f"{__product__} — AI Coding Companion (v{__version__})")
         self.resize(1380, 880)
@@ -173,6 +175,7 @@ class CPSMainWindow(QMainWindow):
         self.last_proposed_patch: dict | None = None
         self.chat_history: list[dict] = []
         self._workers: list[QThread] = []
+        self._backend = backend
 
         root = QWidget()
         main_layout = QHBoxLayout(root)
@@ -239,6 +242,8 @@ class CPSMainWindow(QMainWindow):
         for worker in tuple(self._workers):
             if worker.isRunning():
                 worker.wait(5000)
+        if self._backend is not None:
+            self._backend.stop()
         event.accept()
 
     def apply_theme(self):
@@ -1097,6 +1102,13 @@ class CPSMainWindow(QMainWindow):
         test_ollama_btn = QPushButton("🔍 Check Local Ollama & Gemma 4")
         test_ollama_btn.clicked.connect(self.check_local_model)
         o_l.addWidget(test_ollama_btn)
+        install_ollama_btn = QPushButton("🌐 Open Ollama download page")
+        install_ollama_btn.clicked.connect(lambda: QDesktopServices.openUrl(QUrl("https://ollama.com/download")))
+        o_l.addWidget(install_ollama_btn)
+        o_l.addWidget(QLabel(
+            "No API key is required. C.P.S. never downloads models silently. "
+            f"Install Ollama, then run: ollama pull {config.DEFAULT_OLLAMA_MODEL}"
+        ))
         box.addWidget(ollama_group)
 
         # Hosted providers test
@@ -1128,6 +1140,15 @@ class CPSMainWindow(QMainWindow):
         status = "Ready: " if ok else "Notice: "
         self.model_status_lbl.setText(status + msg)
         self.model_diagnostics.append(f"[{'SUCCESS' if ok else 'CHECK'}] Ollama: {msg}")
+        if hasattr(self, "dash_summary"):
+            if ok:
+                self.dash_summary.setPlainText(f"Local AI is ready. {msg}")
+            else:
+                self.dash_summary.setPlainText(
+                    f"Local AI setup notice: {msg}\n\n"
+                    f"You can still scan, patch, verify, and use Mock / Offline mode. "
+                    f"Install Ollama and run: ollama pull {config.DEFAULT_OLLAMA_MODEL}"
+                )
 
     def test_prov(self, prov_name: str):
         self.model_diagnostics.append(f"Checking {prov_name} in background...")
@@ -1296,11 +1317,29 @@ class CPSMainWindow(QMainWindow):
 
 def main() -> int:
     self_check = "--self-check" in sys.argv
+    backend_requested = config.BACKEND_ENABLED
+    if "--backend" in sys.argv:
+        backend_requested = True
+    if "--no-backend" in sys.argv:
+        backend_requested = False
+
+    backend = None
+    if backend_requested and not self_check:
+        try:
+            backend = LocalBackend(config.BACKEND_HOST, config.BACKEND_PORT)
+            backend.start()
+        except Exception as exc:
+            print(f"C.P.S. local backend could not start: {type(exc).__name__}: {exc}")
+            return 2
     try:
         app = QApplication(sys.argv)
         app.setStyle("Fusion")
-        win = CPSMainWindow()
+        win = CPSMainWindow(backend=backend)
+        if not self_check:
+            QTimer.singleShot(0, win.check_local_model)
     except Exception as exc:
+        if backend is not None:
+            backend.stop()
         if self_check:
             print(f"C.P.S. self-check failed: {type(exc).__name__}: {exc}")
             return 2
@@ -1313,7 +1352,11 @@ def main() -> int:
         return 0 if valid else 2
 
     win.show()
-    return app.exec()
+    try:
+        return app.exec()
+    finally:
+        if backend is not None:
+            backend.stop()
 
 
 # Backward compatibility alias

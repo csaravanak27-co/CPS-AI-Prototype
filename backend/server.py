@@ -16,6 +16,8 @@ Built with dual architecture:
 import json
 import logging
 import os
+import ipaddress
+import socket
 import sys
 import time
 from datetime import datetime, timezone
@@ -41,14 +43,38 @@ from cps.scanner import scan_source, scan_files
 logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s")
 logger = logging.getLogger("cps.backend")
 
-# Active settings cache
-SETTINGS_FILE = config.DATA_DIR / "backend_settings.json"
+
+def is_loopback_host(host: str) -> bool:
+    normalized = host.strip().lower().strip("[]")
+    if normalized == "localhost":
+        return True
+    try:
+        return ipaddress.ip_address(normalized).is_loopback
+    except ValueError:
+        return False
+
+
+class _ThreadingHTTPServerV6(ThreadingHTTPServer):
+    address_family = socket.AF_INET6
+
+
+def create_http_server(host: str, port: int) -> ThreadingHTTPServer:
+    """Create a loopback-only server using the correct address family."""
+    if not is_loopback_host(host):
+        raise ValueError("C.P.S. backend only accepts loopback hosts")
+    server_type = _ThreadingHTTPServerV6 if ":" in host else ThreadingHTTPServer
+    return server_type((host, port), CPSHTTPRequestHandler)
+
+def settings_file() -> Path:
+    """Resolve settings at call time so portable/test data roots are honored."""
+    return config.DATA_DIR / "backend_settings.json"
 
 
 def load_settings() -> dict:
-    if SETTINGS_FILE.exists():
+    path = settings_file()
+    if path.exists():
         try:
-            return json.loads(SETTINGS_FILE.read_text(encoding="utf-8"))
+            return json.loads(path.read_text(encoding="utf-8"))
         except Exception:
             pass
     return {
@@ -64,7 +90,7 @@ def save_settings(data: dict):
     config.DATA_DIR.mkdir(parents=True, exist_ok=True)
     current = load_settings()
     current.update(data)
-    SETTINGS_FILE.write_text(json.dumps(current, indent=2), encoding="utf-8")
+    settings_file().write_text(json.dumps(current, indent=2), encoding="utf-8")
     return current
 
 
@@ -375,8 +401,8 @@ def run_standalone_server(host: str = "127.0.0.1", port: int = 8899):
     """Runs the built-in HTTP server."""
     server_address = (host, port)
     try:
-        httpd = ThreadingHTTPServer(server_address, CPSHTTPRequestHandler)
-    except OSError as err:
+        httpd = create_http_server(*server_address)
+    except (OSError, ValueError) as err:
         print(f"[C.P.S.] Error binding to http://{host}:{port}: {err}")
         return False
 

@@ -33,6 +33,13 @@ const DEFAULT_SETTINGS = Object.freeze({
 /** Fetch timeout in milliseconds */
 const FETCH_TIMEOUT_MS = 30_000;
 
+/** Files injected after an explicit toolbar/context-menu action on other sites. */
+const CONTENT_SCRIPT_FILES = Object.freeze([
+  'shared/browser-api.js',
+  'site_adapters/adapters.js',
+  'content.js',
+]);
+
 /** Storage keys */
 const STORAGE_KEY_HISTORY = 'cps_history';
 const STORAGE_KEY_SETTINGS = 'cps_settings';
@@ -79,6 +86,40 @@ async function fetchWithTimeout(url, options = {}, timeoutMs = FETCH_TIMEOUT_MS)
   } finally {
     clearTimeout(timer);
   }
+}
+
+function backendSetupGuidance(backendUrl, reason = 'stopped') {
+  const endpoint = String(backendUrl || DEFAULT_SETTINGS.backendUrl).replace(/\/+$/, '');
+  const reasonText = reason === 'invalid'
+    ? 'The saved backend URL is not valid.'
+    : 'The local backend is not running or could not be reached.';
+  return {
+    status: 'backend-stopped',
+    title: 'Local backend not detected',
+    message: `${reasonText} C.P.S. can still use offline mode, or a provider key you choose.`,
+    backendUrl: endpoint,
+    steps: [
+      'Start the C.P.S. backend with: python -m backend.server',
+      `Check that ${endpoint}/api/health opens in your browser.`,
+      'Return to Settings and choose Test Provider Connection, then retry.',
+    ],
+  };
+}
+
+function classifyBackendFailure(error, backendUrl) {
+  const invalidUrl = !/^https?:\/\//i.test(String(backendUrl || ''));
+  return backendSetupGuidance(backendUrl, invalidUrl ? 'invalid' : 'stopped');
+}
+
+/**
+ * Injects the content script only after a user gesture grants activeTab access.
+ * Known coding sites already receive the static content script from the
+ * manifest; the guard in content.js makes this safe for those pages too.
+ */
+async function ensureContentScript(tabId) {
+  if (!tabId || !chrome.scripting?.executeScript) return false;
+  await chrome.scripting.executeScript({ target: { tabId }, files: CONTENT_SCRIPT_FILES });
+  return true;
 }
 
 /**
@@ -328,11 +369,6 @@ async function queryAI(payload) {
     model: effectiveSettings.model || '',
   };
 
-  // Include API key if available
-  if (effectiveSettings.apiKey) {
-    body.apiKey = effectiveSettings.apiKey;
-  }
-
   let localError = '';
   try {
     const response = await fetchWithTimeout(url, {
@@ -359,16 +395,19 @@ async function queryAI(payload) {
   try {
     return await queryDirectProvider(payload, effectiveSettings);
   } catch (directError) {
+    const setup = classifyBackendFailure(localError, backendUrl);
     return {
       success: true,
       offline: true,
+      backendStatus: setup.status,
+      setup,
       data: {
         success: true,
         offline: true,
         provider: 'offline',
         response: offlineGuidance(payload),
       },
-      error: `${localError}; ${directError.message || 'direct provider unavailable'}`,
+      error: `${setup.title}: ${setup.message} ${directError.message || 'Direct provider unavailable.'}`,
     };
   }
 }
@@ -390,15 +429,23 @@ async function checkConnection() {
     const data = await response.json();
     return { connected: true, mode: 'local-backend', data, message: 'Local backend connected' };
   } catch (err) {
-    const localMessage = err.name === 'AbortError' ? 'Local backend connection timed out' : (err.message || 'Cannot reach local backend');
+    const setup = classifyBackendFailure(err, backendUrl);
     try {
-      return await pingDirectProvider(settings);
+      const direct = await pingDirectProvider(settings);
+      return {
+        ...direct,
+        backendStatus: setup.status,
+        backendMessage: 'Local backend is not running; using the selected provider directly.',
+        setup,
+      };
     } catch (directError) {
       return {
         connected: false,
         mode: 'offline',
+        backendStatus: setup.status,
+        setup,
         fallbackAvailable: true,
-        message: `${localMessage}. Offline guidance is available; configure a direct provider key for cloud fallback.`,
+        message: `${setup.title}: ${setup.message}`,
       };
     }
   }
@@ -499,6 +546,12 @@ chrome.contextMenus.onClicked.addListener(async (info, tab) => {
       siteName: '',
       context: '',
     };
+
+    try {
+      await ensureContentScript(tab.id);
+    } catch (_) {
+      // The selected text remains usable if the page refuses script access.
+    }
 
     try {
       const response = await chrome.tabs.sendMessage(tab.id, {

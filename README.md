@@ -10,7 +10,7 @@
    - Persistent AI sidebar with multi-tab interface (Chat, Code Studio, History, Settings).
    - Non-intrusive **Highlight-to-Ask** action button with intelligent context menus.
    - Dedicated site adapters for **LeetCode, HackerRank, Codeforces, CodeChef, GeeksforGeeks, GitHub, GitLab, and Stack Overflow**.
-   - Generic DOM selection fallback for arbitrary documentation sites and web editors.
+    - Generic DOM selection fallback for arbitrary documentation sites and web editors after an explicit user action.
 
 2. **Multi-Language Code Generation Engine**
    - Supports **28+ programming languages** (Python, JavaScript, TypeScript, Java, C, C++, C#, Go, Rust, PHP, Ruby, Kotlin, Swift, Dart, R, SQL, Bash, PowerShell, HTML, CSS, Scala, Perl, Lua, Julia, MATLAB, Haskell, Solidity).
@@ -63,13 +63,20 @@ pip install -e .
 ```powershell
 python app.py
 ```
+The desktop launcher does not start an HTTP listener by default.  To opt in to
+the extension companion backend, set `CPS_BACKEND_ENABLED=1` or use
+`python app.py --backend`.  The app-managed backend accepts only loopback
+addresses (`127.0.0.1`, `::1`, or `localhost`) and is stopped with the window.
+Use `--no-backend` to override an enabled environment setting.
 
 ### 3. Launch Shared Backend Server (for Extension & API)
 
 ```powershell
 python -m backend.server
 ```
-The server will start on `http://127.0.0.1:8899`.
+The standalone server will start on `http://127.0.0.1:8899`.  This is a
+developer/server command; installed desktop users should use the explicit
+`--backend` launcher option above.
 
 ### 4. Install Browser Extension in Chrome / Edge
 
@@ -80,6 +87,21 @@ The server will start on `http://127.0.0.1:8899`.
 3. Click **Load unpacked**.
 4. Select the `extension/` directory inside this repository.
 5. Click the C.P.S. extension icon in your browser toolbar or press the side panel shortcut.
+
+### If the extension says the backend is not running
+
+The extension can still use its deterministic offline provider, but AI requests
+that need the local service require the backend process:
+
+```bash
+python -m backend.server
+```
+
+Then open the extension sidebar's **Settings** tab, confirm the backend URL,
+and choose **Test Provider Connection**. The popup and sidebar show the same
+steps when `http://localhost:8899/api/health` cannot be reached. A hosted
+provider API key is optional and is entered by the user; it is not required
+for offline mode or local-backend use.
 
 ---
 
@@ -136,11 +158,46 @@ headless backend and CI/release validation.
 Run `python scripts/package_release.py` (or `make package`) to create clean,
 deterministic archives under `dist/`:
 
-- `dist/cps-extension-v1.0.0.zip` — store-uploadable extension package.
+- `dist/cps-extension-v1.0.0.zip` — deterministically validated extension package prepared for a publisher to upload; no official listing is implied.
 - `dist/cps-v1.0.0-release.zip` — standalone source and desktop release.
 
 Local databases, backups, caches, `.env`, build output, and development
 artifacts are excluded from both release workflows as appropriate.
+
+### Windows desktop build and installer
+
+The supported desktop distribution target is **Windows 10/11 x64**.  Run the
+following on Windows from a clean checkout:
+
+```powershell
+python -m venv .venv
+.\.venv\Scripts\Activate.ps1
+python -m pip install --requirement requirements.lock
+python -m pip install --no-deps --editable .
+python -m PyInstaller --clean --noconfirm packaging/cps.spec
+```
+
+The resulting standalone onedir artifact is `dist\CPS\CPS.exe`.  The checked-
+in `installer\CPS.iss` is an Inno Setup 6 script; it consumes that artifact
+and derives the installer version from the executable's Windows version
+resource.  With Inno Setup installed, build both in one command:
+
+```powershell
+.\scripts\build_windows.ps1 -BuildInstaller
+```
+
+The script fails if PyInstaller or `ISCC.exe` is unavailable; it never creates
+a placeholder installer.  The installer ships application binaries only.  It
+does not include `.env`, API keys, SQLite databases, caches, or development
+artifacts.  Installed app data is written to `%LOCALAPPDATA%\CPS` (or the
+explicit `CPS_DATA_DIR` override), so the application does not need write
+access to `Program Files`.  The installer is per-user and does not require
+administrator privileges.  Its normal Start Menu and desktop shortcuts
+launch with the localhost companion backend enabled; a separate **desktop
+only** Start Menu shortcut is also provided.  Uninstall removes program
+files and shortcuts but leaves `%LOCALAPPDATA%\CPS` user data in place.
+Users who want a complete purge should use **Settings & Privacy → Clear All
+User Data** before uninstall.
 
 ---
 

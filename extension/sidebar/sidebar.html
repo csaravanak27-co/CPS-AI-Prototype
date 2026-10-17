@@ -933,6 +933,21 @@
     .test-conn-status.error { color: var(--error); }
     .test-conn-status.warning { color: var(--warning); }
 
+    .setup-guidance {
+      margin: 0 14px 12px;
+      padding: 10px 12px;
+      background: rgba(251, 191, 36, 0.08);
+      border: 1px solid rgba(251, 191, 36, 0.24);
+      border-radius: var(--radius);
+      color: var(--warning);
+      font-size: 12px;
+    }
+
+    .setup-guidance[hidden] { display: none; }
+    .setup-guidance-title { font-weight: 600; margin-bottom: 5px; }
+    .setup-guidance ol { margin: 0; padding-left: 18px; }
+    .setup-guidance li { margin: 3px 0; }
+
     .save-settings-btn {
       padding: 10px;
       background: var(--accent);
@@ -1027,11 +1042,15 @@
         <div class="chat-welcome" id="chatWelcome">
           <div class="welcome-icon">⚡</div>
           <div class="welcome-title">Welcome to C.P.S.</div>
-          <div class="welcome-text">
-            Your AI Coding Companion. Select code on any page, paste it here,
-            or ask a question to get started.
-          </div>
-        </div>
+           <div class="welcome-text">
+             Your AI Coding Companion. Select code on any page, paste it here,
+             or ask a question to get started.
+           </div>
+           <div class="setup-guidance" id="setupGuidance" hidden>
+             <div class="setup-guidance-title" id="setupGuidanceTitle">Connection setup</div>
+             <ol id="setupGuidanceSteps"></ol>
+           </div>
+         </div>
       </div>
 
       <div class="chat-input-area">
@@ -1171,7 +1190,7 @@
             <label class="setting-label">API Key</label>
             <input type="password" class="setting-input" id="settingApiKey"
                    placeholder="Enter your API key">
-             <span class="setting-note">Stored locally in browser storage. Used only for the selected provider after local-backend fallback.</span>
+              <span class="setting-note">Optional. Stored locally in browser storage and sent only to the provider you select.</span>
           </div>
         </div>
 
